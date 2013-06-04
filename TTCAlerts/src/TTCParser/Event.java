@@ -4,25 +4,23 @@ import java.io.Serializable;
 
 public class Event implements Serializable{
 	private static final long serialVersionUID = 1L;
-	private long _start;
-	private long _end;
-	private String _originalMessage;
+	private HalfEvent _start;
+	private HalfEvent _end;
 	
-	public Event(long start, long end, String originalMessage) {
+	public Event(HalfEvent start, HalfEvent end) {
 		_start = start;
 		_end = end;
-		_originalMessage = originalMessage;
 	}
 	
-	public long getStart() { return _start; }
-	public void setStart(long start) { _start = start;}
+	public long getStartTime() { return _start.getDate(); }
+	public long getEndTime() { return _end.getDate(); }
 	
-	public long getEnd() { return _end; }
-	public void setEnd(long end) { _end = end; }
+	public HalfEvent getStart() { return _start; }
+	public void setStart(HalfEvent start) { _start = start; }
 	
-	public String getOriginalMessage() { return _originalMessage;}
-	public void setOriginalMessage(String originalMessage) { _originalMessage = originalMessage;}
-	
-	public long getDuration() { return _end - _start; }
+	public HalfEvent getEnd() { return _end; }
+	public void setEnd(HalfEvent end) { _end = end; }
+		
+	public long getDuration() { return getEndTime() - getStartTime(); }
 	public int getDurationInMins() { return (int)(getDuration()/(60*1000)); }
 }

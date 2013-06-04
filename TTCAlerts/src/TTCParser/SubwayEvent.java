@@ -22,18 +22,18 @@ public class SubwayEvent extends Event {
 		}
 	}
 
-	public SubwayEvent(long start, long end, String originalMessage, Station station, DelayCause delayCause) {
-		super(start, end, originalMessage);
+	public SubwayEvent(HalfEvent start, HalfEvent end, Station station, DelayCause delayCause) {
+		super(start, end);
 		_station = station;
 		_delayCause = delayCause;
 	}
 	
-	public SubwayEvent(SubwayHalfEvent startHalf, SubwayHalfEvent endHalf) {
-		super(startHalf.getDate(), endHalf.getDate(), startHalf.getOriginalMessage() + "||||" + endHalf.getOriginalMessage());
-		_station = startHalf.getStation();
+	public SubwayEvent(SubwayHalfEvent start, SubwayHalfEvent end) {
+		super(start, end);
+		_station = start.getStation();
 		
 		// Try and extract delay
-		String originalSourceMsg = startHalf.getOriginalMessage().toLowerCase();
+		String originalSourceMsg = start.getOriginalMessage().toLowerCase();
 		int delayStartIdx = originalSourceMsg.indexOf("due to ");
 		if (delayStartIdx >= 0 ) {
 			int delayEndIdx = originalSourceMsg.indexOf(" at ", delayStartIdx);
