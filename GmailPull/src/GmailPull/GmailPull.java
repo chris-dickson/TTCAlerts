@@ -6,6 +6,7 @@ import java.util.Date;
 import java.util.Properties;
 
 import javax.mail.Folder;
+import javax.mail.FolderClosedException;
 import javax.mail.Message;
 import javax.mail.MessagingException;
 import javax.mail.NoSuchProviderException;
@@ -23,6 +24,16 @@ import com.sun.mail.imap.IMAPBodyPart;
 
 public class GmailPull {
 	private Store _imapStore;
+	private String _login;
+	private String _password;
+	
+	public GmailPull(String login, String password) {
+		_login = login;
+		_password = password;
+		if (!connect()) {
+			System.exit(1);
+		}
+	}
 	
 	// Recursive function to build the parts of a message.   Most message parts are strings, but they can be nested messages
 	private void buildParts(MimeMultipart mmpt, StringBuilder partialMsg) {
@@ -112,22 +123,45 @@ public class GmailPull {
 		return gmsg;
 	}
 	
-
-	public GmailPull(String login, String password) {
+	private ArrayList<GmailMessage> downloadMessages(Message[] javaxMessages) {
+		return downloadMessages(javaxMessages, Integer.MAX_VALUE);
+	}
+	
+	private ArrayList<GmailMessage> downloadMessages(Message[] javaxMessages, int max) { 
+		ArrayList<GmailMessage> gmailMessages = new ArrayList<GmailMessage>();
+		int msgIdx = 0;
+		while (msgIdx < javaxMessages.length && msgIdx < max) {
+			try {
+				System.out.println("Downloading message " + (msgIdx+1) + " of " + Math.min(javaxMessages.length, max));
+				GmailMessage gmsg = javaxMsgToMsg(javaxMessages[msgIdx]);
+				gmailMessages.add(gmsg);
+				msgIdx++;
+			} catch (FolderClosedException fce) {
+				// try to reconnect to the server and if it fails, return what we have
+				if (!connect()) {
+					return gmailMessages;
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+		return gmailMessages;
+	}
+	
+	private boolean connect() {
 		Properties props = System.getProperties();
 		props.setProperty("mail.store.protocol", "imaps");
 		try {
 			Session session = Session.getDefaultInstance(props, null);
 			_imapStore = session.getStore("imaps");
-			_imapStore.connect("imap.gmail.com", login, password);
-		
+			_imapStore.connect("imap.gmail.com", _login, _password);
+			return true;
 		} catch (NoSuchProviderException e) {
 			e.printStackTrace();
-			System.exit(1);
 		} catch (MessagingException e) {
 			e.printStackTrace();
-			System.exit(2);
 		}
+		return false;
 	}
 	
 	public ArrayList<GmailMessage> getAllMessagesFromFolder(String folderName) { 
@@ -136,13 +170,7 @@ public class GmailPull {
 			Folder inbox = _imapStore.getFolder(folderName);
 			inbox.open(Folder.READ_ONLY);
 			Message messages[] = inbox.getMessages();
-			int msgIdx = 0;
-			for(Message message:messages) {
-				System.out.println("Downloading message " + msgIdx + " of " + messages.length);
-				GmailMessage gmsg = javaxMsgToMsg(message);
-				gmailMessages.add(gmsg);
-				msgIdx++;
-			}
+			gmailMessages = downloadMessages(messages);
 		} catch(Exception e) {
 			e.printStackTrace();
 		}
@@ -155,17 +183,10 @@ public class GmailPull {
 		try {
 			Folder inbox = _imapStore.getFolder(folderName);
 			inbox.open(Folder.READ_ONLY);
+			
 			Message messages[] = inbox.getMessages();
-			int msgIdx = 0;
-			for(Message message:messages) {
-				System.out.println("Downloading message " + (msgIdx+1) + " of " + N);
-				GmailMessage gmsg = javaxMsgToMsg(message);
-				gmailMessages.add(gmsg);
-				msgIdx++;
-				if (msgIdx == N) {
-					break;
-				}
-			}
+			gmailMessages = downloadMessages(messages, N);
+			
 		} catch(Exception e) {
 			e.printStackTrace();
 		}
@@ -179,21 +200,14 @@ public class GmailPull {
 			Folder inbox = _imapStore.getFolder(folderName);
 			inbox.open(Folder.READ_ONLY);
 
-			int msgIdx = 0;
-			
 			// Build the search terms
 			SearchTerm olderThan = new ReceivedDateTerm(ComparisonTerm.LE, new Date(endDate));
 			SearchTerm newerThan = new ReceivedDateTerm(ComparisonTerm.GE, new Date(startDate));
 			SearchTerm andTerm = new AndTerm(olderThan, newerThan);
-			Message messages[] = inbox.search(andTerm);
 			
-			for(Message message:messages) {
-				System.out.println("Downloading message " + msgIdx + " of " + messages.length);
-				GmailMessage gmsg = javaxMsgToMsg(message);
-				gmailMessages.add(gmsg);
-				msgIdx++;
-				
-			}
+			Message messages[] = inbox.search(andTerm);
+			gmailMessages = downloadMessages(messages);
+			
 		} catch(Exception e) {
 			e.printStackTrace();
 		}
@@ -206,19 +220,13 @@ public class GmailPull {
 		try {
 			Folder inbox = _imapStore.getFolder(folderName);
 			inbox.open(Folder.READ_ONLY);
-
-			int msgIdx = 0;
 			
 			// Build the search terms
 			FromStringTerm ft = new FromStringTerm(senderAddress);
-			Message messages[] = inbox.search(ft);
 			
-			for(Message message:messages) {
-				System.out.println("Downloading message " + msgIdx + " of " + messages.length);
-				GmailMessage gmsg = javaxMsgToMsg(message);
-				gmailMessages.add(gmsg);
-				msgIdx++;
-			}
+			Message messages[] = inbox.search(ft);
+			gmailMessages = downloadMessages(messages);
+			
 		} catch(Exception e) {
 			e.printStackTrace();
 		}
